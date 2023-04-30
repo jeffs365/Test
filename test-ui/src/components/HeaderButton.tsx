@@ -3,7 +3,11 @@ import React from "react";
 import { AppContext } from "../AppContext";
 
 export const HeaderButton: React.FC = () => {
-    const { selectedShelve, setFormBook, setFormShelve } = React.useContext(AppContext);
+    const {
+        selectedShelve,
+        setFormBook,
+        setFormShelve
+    } = React.useContext(AppContext);
 
     const handleAddBook = () => {
         setFormBook({});

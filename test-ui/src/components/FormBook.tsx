@@ -2,9 +2,9 @@ import { Col, Form, Input, Modal, Row, TreeSelect, notification } from "antd";
 import React, { useEffect } from "react";
 import { AppContext } from "../AppContext";
 import * as Yup from "yup";
-import { getAllShelvesTree } from "../services/shelve.service";
-import { useQuery } from "react-query";
-import { createBook, updateBook } from "../services/book.service";
+import { useMainQuery, useShelvesTreeQuery } from "../hooks";
+import { useBookMutation } from "../hooks/useBookMutation";
+import { BookType } from "../models";
 
 const validationSchema = Yup.object().shape({
     title: Yup.string()
@@ -24,46 +24,42 @@ const rules = [
 ]
 
 export const FormBook: React.FC = () => {
-    const { selectedShelve, formBook, setFormBook, setSelectedShelve } = React.useContext(AppContext);
+    const {
+        selectedShelve,
+        setSelectedShelve,
+        formBook,
+        setFormBook
+    } = React.useContext(AppContext);
 
     const [isOpen, setIsOpen] = React.useState(false);
 
-    const { data: treeData } = useQuery('shelvesTree', () => getAllShelvesTree(), { enabled: isOpen });
+    const { data: treeData, isLoading: treeDataLoading } = useShelvesTreeQuery(isOpen);
+
+    const { mutateAsync: saveBookAsync, isLoading: saveLoading } = useBookMutation();
 
     const [form] = Form.useForm();
 
     useEffect(() => {
-        form.resetFields();
-        form.setFieldsValue(formBook);
-
         if (!formBook)
             setIsOpen(false);
         else {
             setIsOpen(true);
 
+            form.resetFields();
+            form.setFieldsValue(formBook);
             if (!formBook?.bookId)
                 form.setFieldsValue({ shelveId: selectedShelve?.shelveId });
         }
+    }, [formBook, form, selectedShelve])
 
-
-    }, [formBook, form])
-
-    const handleSubmit = (values: any) => {
-        const { shelveId } = values;
-        let promise = null;
-
-        if (!values.bookId)
-            promise = createBook(shelveId, values);
-        else
-            promise = updateBook(shelveId, values.bookId, values);
-
-        promise.then(() => {
+    const handleSubmit = (values: BookType) => {
+        saveBookAsync(values).then(() => {
             notification.success({
                 message: 'Success',
                 description: "Book has been saved."
             });
-            setFormBook(null);
-            setSelectedShelve({ shelveId, _v: Date.now() });
+            setFormBook(undefined);
+            setSelectedShelve({ shelveId: values?.shelveId, _v: Date.now() });
         })
     }
 
@@ -72,9 +68,10 @@ export const FormBook: React.FC = () => {
             title={formBook?.bookId ? "Edit Book" : "Add Book"}
             centered
             open={isOpen}
-            onCancel={() => setFormBook(null)}
+            onCancel={() => setFormBook(undefined)}
             onOk={() => form.submit()}
             okText="Save"
+            confirmLoading={saveLoading}
         >
             <Form form={form}
                 layout="vertical"
@@ -116,6 +113,7 @@ export const FormBook: React.FC = () => {
                                 treeNodeFilterProp="name"
                                 showSearch
                                 treeDefaultExpandAll
+                                loading={treeDataLoading}
                             />
                         </Form.Item>
                     </Col>

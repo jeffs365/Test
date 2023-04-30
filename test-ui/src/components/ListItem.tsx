@@ -3,37 +3,38 @@ import { List, Modal, notification } from "antd"
 import Link from "antd/es/typography/Link"
 import React from "react";
 import { AppContext } from "../AppContext";
-import { removeBook } from "../services/book.service";
-import { removeShelve } from "../services/shelve.service";
+import { ItemType } from "../models";
+import { useItemMutation } from "../hooks";
 
-export const ListItem: React.FC<{ item: any }> = ({
+export const ListItem: React.FC<{ item: ItemType }> = ({
     item,
 }) => {
-    const { selectedShelve, setSelectedShelve, setFormBook, setFormShelve } = React.useContext(AppContext);
+    const {
+        selectedShelve,
+        setSelectedShelve,
+        setFormBook,
+        setFormShelve
+    } = React.useContext(AppContext);
 
-    const handleSelectShelve = (item: any) => {
+    const { mutateAsync: removeItemAsync } = useItemMutation();
+
+    const handleSelectShelve = (item: ItemType) => {
         if (item?.isBook) return;
         setSelectedShelve(item);
     }
 
-    const handleEdit = (item: any) => {
+    const handleEdit = (item: ItemType) => {
         if (item?.isBook) setFormBook(item);
         else setFormShelve(item);
     }
 
-    const handleDelete = (item: any) => {
+    const handleDelete = (item: ItemType) => {
         Modal.confirm({
             title: 'Confirm Delete',
             icon: <ExclamationCircleFilled />,
             content: 'Are you sure to delete this item?',
             onOk() {
-                let promise;
-                if (item?.isBook) {
-                    promise = removeBook(item?.shelveId, item?.bookId);
-                } else {
-                    promise = removeShelve(item?.shelveId);
-                }
-                promise?.then(({ data }) => {
+                removeItemAsync(item).then(({ data }) => { 
                     setSelectedShelve({ ...selectedShelve, _v: Date.now() });
                     if (data?.success) {
                         notification.success({

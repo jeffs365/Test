@@ -2,9 +2,8 @@ import { Col, Form, Input, Modal, Row, TreeSelect, notification } from "antd";
 import React, { useEffect } from "react";
 import { AppContext } from "../AppContext";
 import * as Yup from "yup";
-import { getAllShelvesTree } from "../services/shelve.service";
-import { useQuery } from "react-query";
-import { createShelve, updateShelve } from "../services/shelve.service";
+import { useShelveMutation, useShelvesTreeQuery } from "../hooks";
+import { ShelveType } from "../models";
 
 const validationSchema = Yup.object().shape({
     name: Yup.string()
@@ -28,7 +27,9 @@ export const FormShelve: React.FC = () => {
 
     const [isOpen, setIsOpen] = React.useState(false);
 
-    const { data: treeData } = useQuery('shelvesTree', () => getAllShelvesTree(), { enabled: isOpen });
+    const { data: treeData, isLoading: treeDataLoading } = useShelvesTreeQuery(isOpen);
+
+    const { mutateAsync: saveBookAsync, isLoading: saveLoading } = useShelveMutation();
 
     const [form] = Form.useForm();
 
@@ -41,28 +42,21 @@ export const FormShelve: React.FC = () => {
         else {
             setIsOpen(true);
 
-            if (!formShelve?.bookId)
+            if (!formShelve?.shelveId)
                 form.setFieldsValue({ parentShelveId: selectedShelve?.shelveId });
         }
-    }, [formShelve, form])
+    }, [formShelve, form, selectedShelve])
 
-    const handleSubmit = (values: any) => {
-        const { shelveId, parentShelveId } = values;
-        let promise = null;
-
-        if (!values.shelveId)
-            promise = createShelve(values);
-        else
-            promise = updateShelve(shelveId, values);
-
-        promise.then(() => {
-            notification.success({
-                message: 'Success',
-                description: "Location has been saved."
-            });
-            setFormShelve(null);
-            setSelectedShelve({ shelveId: parentShelveId, _v: Date.now() });
-        })
+    const handleSubmit = (values: ShelveType) => {
+        saveBookAsync(values)
+            .then(() => {
+                notification.success({
+                    message: 'Success',
+                    description: "Location has been saved."
+                });
+                setFormShelve(undefined);
+                setSelectedShelve({ shelveId: values?.parentShelveId, _v: Date.now() });
+            })
     }
 
     return (
@@ -70,9 +64,10 @@ export const FormShelve: React.FC = () => {
             title={formShelve?.shelveId ? "Edit Location" : "Add Location"}
             centered
             open={isOpen}
-            onCancel={() => setFormShelve(null)}
+            onCancel={() => setFormShelve(undefined)}
             onOk={() => form.submit()}
             okText="Save"
+            confirmLoading={saveLoading}
         >
             <Form form={form}
                 layout="vertical"
@@ -113,6 +108,7 @@ export const FormShelve: React.FC = () => {
                                 treeNodeFilterProp="name"
                                 showSearch
                                 treeDefaultExpandAll
+                                loading={treeDataLoading}
                             />
                         </Form.Item>
                     </Col>

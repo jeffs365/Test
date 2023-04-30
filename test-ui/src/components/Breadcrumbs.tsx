@@ -1,34 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { AppContext } from "../AppContext";
 import { Breadcrumb } from "antd";
-import { getPath } from "../services/shelve.service";
+import { ShelveType } from "../models";
+import http from "../http-common";
+import { useQuery } from "react-query";
 
 
 export const Breadcrumbs: React.FC = () => {
     const { selectedShelve, setSelectedShelve } = React.useContext(AppContext);
 
-    const [data, setData] = useState<any[]>([]);
-
-    useEffect(() => {
-        if (selectedShelve?.shelveId) {
-            getPath(selectedShelve?.shelveId)
-                .then(({ data: res }) => {
-                    const items = res.map((d: any) => {
-                        return {
-                            title: d.name,
-                            onClick: () => handleClick(d),
-                        };
-                    });
-                    setData(items);
-                })
-        } else {
-            setData([]);
-        }
-    }, [selectedShelve]);
-
-    const handleClick = (item: any) => {
-        setSelectedShelve(item);
-    }
+    const { data } = useQuery(
+        ['breadcrumbs', selectedShelve?.shelveId],
+        async () => {
+            if (!selectedShelve?.shelveId) return [];
+            const { data } = await http.get(`/shelves/path?shelveId=${selectedShelve?.shelveId}`);
+            return data.map((shelve: ShelveType) => ({
+                title: shelve.name,
+                onClick: () => setSelectedShelve(shelve),
+            }))
+        });
 
     return (
         <Breadcrumb items={data} separator=">" />
